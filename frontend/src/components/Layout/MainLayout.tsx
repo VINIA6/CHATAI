@@ -9,8 +9,13 @@ interface MainLayoutProps {
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { 
+    messages,
+    currentConversationId,
+    conversations,
     setCurrentConversation,
     clearMessages,
+    addConversation,
+    updateConversation,
   } = useChatStore();
 
   // Handle responsive sidebar
