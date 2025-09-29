@@ -1,6 +1,7 @@
 import os
 import jwt
 import datetime
+import bcrypt
 from flask import request, jsonify
 from config.database import db_config
 
@@ -38,7 +39,8 @@ class AuthController:
                     "is_deleted": False
                 })
 
-            if user and password == "admin123":  # Demo password - em produção usar bcrypt
+            # Verificar senha usando bcrypt
+            if user and user.get('password') and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
                 token = jwt.encode({
                     'user': user['email'],
                     'user_id': str(user['_id']),

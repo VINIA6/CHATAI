@@ -100,7 +100,7 @@ def insert_demo_users(db):
             "cargo": "Administrador",
             "cpf": "12345678901",
             "email": "admin@observatorio.fiec.org.br",
-            "password": "$2b$12$rQZ9vGm4Hc6xqzJHHKPjHeSbKHW8X5kJC9Vm4mEQn8L7N6B3F1C.e",  # admin123
+            "password": "$2b$12$PfdIBqe/3YuXAb1Y3bdE2uQ5PeErK2neBeyLqR/WeezVa5HTHHClG",  # admin123
             "create_at": datetime(2024, 1, 1),
             "update_at": datetime.utcnow(),
             "is_deleted": False
@@ -113,7 +113,7 @@ def insert_demo_users(db):
             "cargo": "Analista Sênior",
             "cpf": "23456789012",
             "email": "maria.silva@observatorio.fiec.org.br",
-            "password": "$2b$12$rQZ9vGm4Hc6xqzJHHKPjHeSbKHW8X5kJC9Vm4mEQn8L7N6B3F1C.e",  # analyst123
+            "password": "$2b$12$gTV9Sx3gtjG4yW8mBkERKuEvSMyHQdGfq6YOPlE/2XkSkO5wJ7aE.",  # analyst123
             "create_at": datetime(2024, 1, 15),
             "update_at": datetime.utcnow(),
             "is_deleted": False
@@ -126,7 +126,7 @@ def insert_demo_users(db):
             "cargo": "Gerente Comercial",
             "cpf": "34567890123",
             "email": "joao.santos@empresa.com.br",
-            "password": "$2b$12$rQZ9vGm4Hc6xqzJHHKPjHeSbKHW8X5kJC9Vm4mEQn8L7N6B3F1C.e",  # user123
+            "password": "$2b$12$LMjihNPcq6n1sZwz44tXTeo5Bu5foHkv0KYnBtbu6IjX.jUloWQ0a",  # user123
             "create_at": datetime(2024, 2, 1),
             "update_at": datetime.utcnow(),
             "is_deleted": False

@@ -26,7 +26,7 @@ class Settings:
     MONGODB_DATABASE: str = os.getenv('MONGODB_DATABASE', 'chatai')
     
     # CORS
-    CORS_ORIGINS: List[str] = field(default_factory=lambda: os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173').split(','))
+    CORS_ORIGINS: List[str] = field(default_factory=lambda: os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173,http://localhost:5174').split(','))
     
     # API
     API_PREFIX: str = '/api/v1'
