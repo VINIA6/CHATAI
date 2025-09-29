@@ -17,8 +17,6 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  console.log('🏗️ Layout component renderizando...');
-  
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-gray-900">

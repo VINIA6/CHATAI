@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { useChatStore } from '../../store/chatStore';
+import { useAuth } from '../../hooks/useAuth';
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  console.log('🏠 MainLayout component renderizando...');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
   const { 
     messages,
     currentConversationId,
@@ -76,6 +77,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         addConversation({
           title,
           messages: [...messages],
+          userId: user?.id || 'anonymous',
         });
       }
     }

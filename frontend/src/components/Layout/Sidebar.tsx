@@ -6,9 +6,14 @@ import {
   Trash2, 
   Edit3,
   X,
-  Search
+  Search,
+  LogOut,
+  User,
+  Shield,
+  BarChart3
 } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
+import { useAuth } from '../../hooks/useAuth';
 import { formatRelativeTime, cn } from '../../utils';
 import type { Conversation } from '../../types';
 
@@ -32,6 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     deleteConversation,
     updateConversation,
   } = useChatStore();
+  
+  const { user, logout } = useAuth();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -243,8 +250,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </AnimatePresence>
         </div>
 
-        {/* Footer */}
+        {/* User Info & Logout */}
         <div className="p-4 border-t border-gray-700">
+          {user && (
+            <div className="mb-4">
+              <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
+                <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  {user.role === 'admin' ? (
+                    <Shield size={18} className="text-white" />
+                  ) : user.role === 'analyst' ? (
+                    <BarChart3 size={18} className="text-white" />
+                  ) : (
+                    <User size={18} className="text-white" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {user.name}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {user.email}
+                  </p>
+                  <p className="text-xs text-emerald-400 font-medium">
+                    {user.role === 'admin' ? 'Administrador' : 
+                     user.role === 'analyst' ? 'Analista' : 'Usuário'}
+                  </p>
+                </div>
+              </div>
+              
+              <button
+                onClick={logout}
+                className="w-full mt-3 flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <LogOut size={16} />
+                Sair
+              </button>
+            </div>
+          )}
+          
           <div className="text-xs text-gray-400 text-center">
             v1.0.0 • Observatório da Indústria
           </div>

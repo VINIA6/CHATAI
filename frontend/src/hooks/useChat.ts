@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useChatStore } from '../store/chatStore';
+import { useAuthStore } from '../store/authStore';
 import { chatService } from '../services/chatService';
 import type { ChatRequest } from '../types';
 
@@ -16,6 +17,8 @@ export const useChat = () => {
     addConversation,
     updateConversation,
   } = useChatStore();
+  
+  const { user } = useAuthStore();
 
   const [isStreaming, setIsStreaming] = useState(false);
 
@@ -52,6 +55,7 @@ export const useChat = () => {
           const conversationId = addConversation({
             title,
             messages: [...messages],
+            userId: user?.id || 'anonymous',
           });
           // Atualizar o ID da conversa atual
           useChatStore.getState().setCurrentConversation(conversationId);

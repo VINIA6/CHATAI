@@ -17,7 +17,33 @@ export interface ChatState {
 export interface User {
   id: string;
   name: string;
+  email: string;
   avatar?: string;
+  role: 'admin' | 'user' | 'analyst';
+  company?: string;
+  department?: string;
+  createdAt: Date;
+  lastLoginAt?: Date;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  token: string | null;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+export interface LoginResponse {
+  user: User;
+  token: string;
+  expiresIn: number;
 }
 
 export interface Conversation {
@@ -26,6 +52,7 @@ export interface Conversation {
   messages: Message[];
   createdAt: Date;
   updatedAt: Date;
+  userId: string;
 }
 
 export interface ChatConfig {
