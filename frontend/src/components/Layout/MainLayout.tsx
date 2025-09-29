@@ -7,6 +7,7 @@ interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  console.log('🏠 MainLayout component renderizando...');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { 
     messages,

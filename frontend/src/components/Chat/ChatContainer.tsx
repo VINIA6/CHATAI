@@ -12,6 +12,7 @@ interface ChatContainerProps {
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
+  console.log('💻 ChatContainer component renderizando...');
   const { messages, isLoading, sendMessage, regenerateResponse } = useChat();
   const { 
     clearMessages, 
