@@ -67,7 +67,7 @@ const authAPI = {
       throw new Error('Email ou senha inválidos');
     }
     
-    const { password, ...userWithoutPassword } = user;
+    const { password: _, ...userWithoutPassword } = user;
     
     return {
       user: userWithoutPassword,
