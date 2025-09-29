@@ -23,7 +23,7 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState<string>('');
 
-  // Usuários demo para facilitar o teste
+  // Usuários disponíveis no sistema com suas senhas reais
   const demoUsers = [
     {
       id: 'admin',
@@ -35,19 +35,19 @@ export const LoginPage: React.FC = () => {
     },
     {
       id: 'analyst',
-      name: 'Analista de Dados',
+      name: 'Maria Silva',
       email: 'maria.silva@observatorio.fiec.org.br',
       password: 'analyst123',
-      role: 'Analista',
+      role: 'Analista Sênior',
       description: 'Análise de dados industriais',
     },
     {
       id: 'user',
-      name: 'Usuário Empresarial',
+      name: 'João Santos',
       email: 'joao.santos@empresa.com.br',
       password: 'user123',
-      role: 'Usuário',
-      description: 'Consultas e relatórios',
+      role: 'Gerente Comercial',
+      description: 'Consultas e relatórios empresariais',
     },
   ];
 
@@ -64,7 +64,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(credentials);
-    } catch (error) {
+    } catch {
       // Erro já tratado no store
     }
   };
@@ -213,9 +213,9 @@ export const LoginPage: React.FC = () => {
 
           {/* Usuários Demo */}
           <div>
-            <h3 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
               <Building2 size={16} />
-              Usuários Demo
+              Usuários Disponíveis
             </h3>
             <div className="space-y-2">
               {demoUsers.map((user) => (

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { AuthState, User, LoginCredentials, LoginResponse } from '../types';
+import type { AuthState, User, LoginCredentials } from '../types';
+import { authService } from '../services/authService';
 
 interface AuthStore extends AuthState {
   // Actions
@@ -16,94 +17,6 @@ interface AuthStore extends AuthState {
   refreshSession: () => Promise<void>;
 }
 
-// Simulação de API de autenticação
-const authAPI = {
-  login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    // Simular delay de rede
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Usuários demo para o Observatório da Indústria
-    const demoUsers = [
-      {
-        id: 'admin-001',
-        name: 'Administrador FIEC',
-        email: 'admin@observatorio.fiec.org.br',
-        password: 'admin123',
-        role: 'admin' as const,
-        company: 'FIEC',
-        department: 'Observatório da Indústria',
-        createdAt: new Date('2024-01-01'),
-        lastLoginAt: new Date(),
-      },
-      {
-        id: 'analyst-001',
-        name: 'Maria Silva',
-        email: 'maria.silva@observatorio.fiec.org.br',
-        password: 'analyst123',
-        role: 'analyst' as const,
-        company: 'FIEC',
-        department: 'Análise de Dados',
-        createdAt: new Date('2024-01-15'),
-        lastLoginAt: new Date(),
-      },
-      {
-        id: 'user-001',
-        name: 'João Santos',
-        email: 'joao.santos@empresa.com.br',
-        password: 'user123',
-        role: 'user' as const,
-        company: 'Empresa Exemplo Ltda',
-        department: 'Comercial',
-        createdAt: new Date('2024-02-01'),
-        lastLoginAt: new Date(),
-      }
-    ];
-    
-    const user = demoUsers.find(u => 
-      u.email === credentials.email && u.password === credentials.password
-    );
-    
-    if (!user) {
-      throw new Error('Email ou senha inválidos');
-    }
-    
-    const { password: _, ...userWithoutPassword } = user;
-    
-    return {
-      user: userWithoutPassword,
-      token: `demo_token_${user.id}_${Date.now()}`,
-      expiresIn: 24 * 60 * 60 * 1000, // 24 horas
-    };
-  },
-  
-  refreshToken: async (token: string): Promise<LoginResponse> => {
-    // Simular verificação de token
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    if (!token || !token.startsWith('demo_token_')) {
-      throw new Error('Token inválido');
-    }
-    
-    // Para demonstração, sempre renovar o token
-    const userId = token.split('_')[2];
-    const demoUser = {
-      id: userId,
-      name: 'Usuário Demo',
-      email: 'demo@observatorio.fiec.org.br',
-      role: 'user' as const,
-      company: 'FIEC',
-      department: 'Demo',
-      createdAt: new Date('2024-01-01'),
-      lastLoginAt: new Date(),
-    };
-    
-    return {
-      user: demoUser,
-      token: `demo_token_${userId}_${Date.now()}`,
-      expiresIn: 24 * 60 * 60 * 1000,
-    };
-  }
-};
 
 export const useAuthStore = create<AuthStore>()(
   devtools(
@@ -121,7 +34,7 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: true, error: null });
           
           try {
-            const response = await authAPI.login(credentials);
+            const response = await authService.login(credentials);
             
             set({
               user: response.user,
@@ -186,7 +99,7 @@ export const useAuthStore = create<AuthStore>()(
           
           try {
             set({ isLoading: true });
-            const response = await authAPI.refreshToken(state.token);
+            const response = await authService.refreshToken(state.token);
             
             set({
               user: response.user,
@@ -198,7 +111,7 @@ export const useAuthStore = create<AuthStore>()(
             const expiresAt = Date.now() + response.expiresIn;
             localStorage.setItem('auth_expires_at', expiresAt.toString());
             
-          } catch (error) {
+          } catch {
             // Token inválido, fazer logout
             get().logout();
           }
