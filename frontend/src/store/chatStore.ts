@@ -14,7 +14,7 @@ interface ChatStore extends ChatState {
   
   // Conversations
   conversations: Conversation[];
-  addConversation: (conversation: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addConversation: (conversation: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt'>) => string;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   deleteConversation: (id: string) => void;
   setCurrentConversation: (id: string | null) => void;
@@ -148,6 +148,39 @@ export const useChatStore = create<ChatStore>()(
           conversations: state.conversations,
           currentConversationId: state.currentConversationId,
         }),
+        // Configuração para lidar com datas corretamente
+        storage: {
+          getItem: (name) => {
+            const str = localStorage.getItem(name);
+            if (!str) return null;
+            
+            try {
+              const parsed = JSON.parse(str);
+              // Converter strings de data de volta para objetos Date
+              if (parsed.state?.conversations) {
+                parsed.state.conversations = parsed.state.conversations.map((conv: any) => ({
+                  ...conv,
+                  createdAt: new Date(conv.createdAt),
+                  updatedAt: new Date(conv.updatedAt),
+                  messages: conv.messages.map((msg: any) => ({
+                    ...msg,
+                    timestamp: new Date(msg.timestamp),
+                  })),
+                }));
+              }
+              return parsed;
+            } catch (error) {
+              console.error('Error parsing localStorage data:', error);
+              return null;
+            }
+          },
+          setItem: (name, value) => {
+            localStorage.setItem(name, JSON.stringify(value));
+          },
+          removeItem: (name) => {
+            localStorage.removeItem(name);
+          },
+        },
       }
     ),
     {

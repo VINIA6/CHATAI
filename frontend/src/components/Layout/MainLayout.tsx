@@ -45,7 +45,41 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     return () => window.removeEventListener('toggleSidebar', handleToggleEvent);
   }, [sidebarOpen]);
 
+  const generateConversationTitle = (messages: { type: string; content: string }[]) => {
+    const userMessages = messages.filter(msg => msg.type === 'user');
+    if (userMessages.length > 0) {
+      const firstMessage = userMessages[0].content;
+      // Gerar título baseado na primeira mensagem (máximo 50 caracteres)
+      return firstMessage.length > 50 
+        ? firstMessage.substring(0, 47) + '...' 
+        : firstMessage;
+    }
+    return `Nova conversa ${new Date().toLocaleDateString()}`;
+  };
+
   const handleNewChat = () => {
+    // Salvar conversa atual se houver mensagens
+    if (messages.length > 0) {
+      if (currentConversationId) {
+        // Atualizar conversa existente
+        const currentConversation = conversations.find(c => c.id === currentConversationId);
+        if (currentConversation) {
+          updateConversation(currentConversationId, {
+            messages: [...messages],
+            title: currentConversation.title || generateConversationTitle(messages),
+          });
+        }
+      } else {
+        // Criar nova conversa para as mensagens atuais
+        const title = generateConversationTitle(messages);
+        addConversation({
+          title,
+          messages: [...messages],
+        });
+      }
+    }
+
+    // Limpar mensagens e iniciar nova conversa
     clearMessages();
     setCurrentConversation(null);
   };

@@ -13,7 +13,11 @@ interface ChatContainerProps {
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const { messages, isLoading, sendMessage, regenerateResponse } = useChat();
-  const { clearMessages } = useChatStore();
+  const { 
+    clearMessages, 
+    conversations, 
+    currentConversationId 
+  } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -135,6 +139,13 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   };
 
   const isEmpty = messages.length === 0;
+  
+  // Obter título da conversa atual
+  const currentConversation = currentConversationId 
+    ? conversations.find(c => c.id === currentConversationId)
+    : null;
+  
+  const conversationTitle = currentConversation?.title || 'Nova conversa';
 
   return (
     <div className={cn('flex flex-col h-full chat-area', className)}>
@@ -163,7 +174,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
               <span className="hidden xs:inline">ChatBot está digitando...</span>
             ) : (
               <>
-                <span className="hidden sm:inline">{messages.length} mensagens</span>
+                <span className="hidden lg:inline" title={conversationTitle}>
+                  {conversationTitle}
+                </span>
+                <span className="hidden sm:inline lg:hidden">{messages.length} mensagens</span>
                 <span className="sm:hidden">{messages.length} msgs</span>
               </>
             )}

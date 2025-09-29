@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useChatStore } from '../store/chatStore';
 import { chatService } from '../services/chatService';
@@ -9,12 +9,58 @@ export const useChat = () => {
     messages,
     isLoading,
     error,
+    currentConversationId,
+    conversations,
     addMessage,
     setLoading,
-    setError,
+    addConversation,
+    updateConversation,
   } = useChatStore();
 
   const [isStreaming, setIsStreaming] = useState(false);
+
+  // Auto-salvar conversa quando mensagens são adicionadas
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const generateConversationTitle = (messages: { type: string; content: string }[]) => {
+      const userMessages = messages.filter(msg => msg.type === 'user');
+      if (userMessages.length > 0) {
+        const firstMessage = userMessages[0].content;
+        return firstMessage.length > 50 
+          ? firstMessage.substring(0, 47) + '...' 
+          : firstMessage;
+      }
+      return `Nova conversa ${new Date().toLocaleDateString()}`;
+    };
+
+    // Debounce para evitar salvamentos excessivos
+    const timeoutId = setTimeout(() => {
+      if (currentConversationId) {
+        // Atualizar conversa existente
+        const currentConversation = conversations.find(c => c.id === currentConversationId);
+        if (currentConversation) {
+          updateConversation(currentConversationId, {
+            messages: [...messages],
+            title: currentConversation.title || generateConversationTitle(messages),
+          });
+        }
+      } else {
+        // Criar nova conversa se há pelo menos 2 mensagens (pergunta + resposta)
+        if (messages.length >= 2) {
+          const title = generateConversationTitle(messages);
+          const conversationId = addConversation({
+            title,
+            messages: [...messages],
+          });
+          // Atualizar o ID da conversa atual
+          useChatStore.getState().setCurrentConversation(conversationId);
+        }
+      }
+    }, 1000); // 1 segundo de debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [messages, currentConversationId, conversations, addConversation, updateConversation]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async (request: ChatRequest) => {
@@ -190,7 +236,7 @@ export const useChat = () => {
         sendMessageMutation.mutate(request);
       }
     },
-[addMessage, sendMessageMutation, setError, setLoading]
+[addMessage, sendMessageMutation, setLoading]
   );
 
   const regenerateResponse = useCallback(

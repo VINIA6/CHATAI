@@ -1,13 +1,16 @@
 import { Layout, MainLayout } from './components/Layout';
 import { ChatPage } from './pages';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   return (
-    <Layout>
-      <MainLayout>
-        <ChatPage />
-      </MainLayout>
-    </Layout>
+    <ErrorBoundary>
+      <Layout>
+        <MainLayout>
+          <ChatPage />
+        </MainLayout>
+      </Layout>
+    </ErrorBoundary>
   );
 }
 
