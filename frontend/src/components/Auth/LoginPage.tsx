@@ -7,10 +7,10 @@ import {
   Mail, 
   Building2, 
   MessageSquare,
-  AlertCircle,
   Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { ErrorModal } from '../UI';
 import type { LoginCredentials } from '../../types';
 
 export const LoginPage: React.FC = () => {
@@ -22,6 +22,7 @@ export const LoginPage: React.FC = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState<string>('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   // Usuários disponíveis no sistema com suas senhas reais
   const demoUsers = [
@@ -55,6 +56,13 @@ export const LoginPage: React.FC = () => {
     clearError();
   }, [clearError]);
 
+  // Mostrar modal quando houver erro
+  useEffect(() => {
+    if (error) {
+      setShowErrorModal(true);
+    }
+  }, [error]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -83,7 +91,15 @@ export const LoginPage: React.FC = () => {
       ...prev,
       [field]: value,
     }));
-    if (error) clearError();
+    if (error) {
+      clearError();
+      setShowErrorModal(false);
+    }
+  };
+
+  const handleCloseErrorModal = () => {
+    setShowErrorModal(false);
+    clearError();
   };
 
   return (
@@ -175,17 +191,6 @@ export const LoginPage: React.FC = () => {
               </label>
             </div>
 
-            {/* Erro */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 bg-red-900 border border-red-700 rounded-lg text-red-300"
-              >
-                <AlertCircle size={16} />
-                <span className="text-sm">{error}</span>
-              </motion.div>
-            )}
 
             {/* Botão de Login */}
             <button
@@ -250,6 +255,21 @@ export const LoginPage: React.FC = () => {
           <p className="mt-1">Sistema de Inteligência Artificial</p>
         </motion.div>
       </motion.div>
+
+      {/* Modal de Erro */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={handleCloseErrorModal}
+        title="Erro de Login"
+        message={error || 'Erro desconhecido'}
+        details={
+          error?.includes('Could not verify') 
+            ? 'Verifique se o email e senha estão corretos e tente novamente.'
+            : error?.includes('NetworkError') || error?.includes('fetch')
+            ? 'Erro de conexão com o servidor. Verifique sua internet e tente novamente.'
+            : undefined
+        }
+      />
     </div>
   );
 };

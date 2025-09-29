@@ -1,15 +1,33 @@
 from flask import Blueprint, jsonify
 from controllers.auth_controller import AuthController
+from controllers.talk_controller import TalkController
+from controllers.message_controller import MessageController
 from auth import token_required
 from config.database import db_config
 
 api_bp = Blueprint('api', __name__)
 
-# Instanciando o controller de autenticação
+# Instanciando controllers
 auth_controller = AuthController()
+talk_controller = TalkController()
+message_controller = MessageController()
 
 # Rotas
-api_bp.route('/login', methods=['POST'], endpoint='login')(auth_controller.login)
+@api_bp.route('/login', methods=['POST'])
+def login():
+    return auth_controller.login()
+
+@api_bp.route('/me', methods=['GET'])
+def get_current_user():
+    return auth_controller.get_current_user()
+
+@api_bp.route('/talk-user', methods=['GET'])
+def get_talks_by_user():
+    return talk_controller.get_talks_by_user()
+
+@api_bp.route('/messages-by-talk', methods=['GET'])
+def get_messages_by_talk():
+    return message_controller.get_messages_by_talk()
 
 @api_bp.route('/health', methods=['GET'])
 def health():
@@ -37,23 +55,4 @@ def health():
             "error": str(e)
         }), 500
 
-# TODO: Implementar endpoints de dados industriais com MongoDB
-@api_bp.route('/acessos-banda-larga', methods=['GET'], endpoint='acessos_banda_larga')
-@token_required
-def get_acessos_banda_larga():
-    return jsonify({"message": "Endpoint em desenvolvimento", "data": []})
 
-@api_bp.route('/analise/acessos-por-regiao', methods=['GET'], endpoint='analise_acessos_por_regiao')
-@token_required
-def get_analise_acessos_por_regiao():
-    return jsonify({"message": "Endpoint em desenvolvimento", "data": []})
-
-@api_bp.route('/analise/acessos-por-uf', methods=['GET'], endpoint='analise_acessos_por_uf')
-@token_required
-def get_analise_acessos_por_uf():
-    return jsonify({"message": "Endpoint em desenvolvimento", "data": []})
-
-@api_bp.route('/analise/evolucao-tecnologia', methods=['GET'], endpoint='analise_evolucao_tecnologia')
-@token_required
-def get_analise_evolucao_tecnologia():
-    return jsonify({"message": "Endpoint em desenvolvimento", "data": []})

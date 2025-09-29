@@ -1,6 +1,0 @@
-from repositories.analise_evolucao_tecnologia_repository import AnaliseEvolucaoTecnologiaRepository
-from use_cases.analise_evolucao_tecnologia_use_case import AnaliseEvolucaoTecnologiaUseCase
-
-def analise_evolucao_tecnologia_use_case_factory():
-    repository = AnaliseEvolucaoTecnologiaRepository()
-    return AnaliseEvolucaoTecnologiaUseCase(repository)

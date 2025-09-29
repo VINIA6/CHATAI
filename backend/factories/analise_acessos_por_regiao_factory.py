@@ -1,6 +1,0 @@
-from repositories.analise_acessos_por_regiao_repository import AnaliseAcessosPorRegiaoRepository
-from use_cases.analise_acessos_por_regiao_use_case import AnaliseAcessosPorRegiaoUseCase
-
-def analise_acessos_por_regiao_use_case_factory():
-    repository = AnaliseAcessosPorRegiaoRepository()
-    return AnaliseAcessosPorRegiaoUseCase(repository)

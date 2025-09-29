@@ -2,8 +2,9 @@ import os
 import jwt
 import datetime
 import bcrypt
-from flask import request, jsonify
+from flask import request, jsonify, g
 from config.database import db_config
+from auth import token_required
 
 class AuthController:
     def login(self):
@@ -63,3 +64,10 @@ class AuthController:
             
         except Exception as e:
             return jsonify({'message': f'Error: {str(e)}'}), 500
+
+    @token_required
+    def get_current_user(self):
+        if not g.current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        return jsonify(g.current_user)
