@@ -1,83 +1,65 @@
 export default async function handler(req, res) {
-  // Configurar CORS
+  // Configurar CORS primeiro
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   // Lidar com preflight requests
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   const backendUrl = 'http://72.60.166.177:5001';
   const targetUrl = `${backendUrl}${req.url}`;
 
-  console.log('=== PROXY REQUEST ===');
-  console.log('Original URL:', req.url);
-  console.log('Target URL:', targetUrl);
-  console.log('Method:', req.method);
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('Body:', req.body);
+  console.log(`[${new Date().toISOString()}] Proxy: ${req.method} ${req.url} -> ${targetUrl}`);
 
   try {
     const fetch = (await import('node-fetch')).default;
     
-    const requestOptions = {
+    // Preparar opções da requisição
+    const options = {
       method: req.method,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Vercel-Proxy/1.0',
-        'Origin': 'https://vercel.app', // Simular origem do Vercel
-        ...(req.headers.authorization && { Authorization: req.headers.authorization })
-      },
-      timeout: 10000 // 10 segundos de timeout
+        'User-Agent': 'Vercel-Proxy/1.0'
+      }
     };
 
-    // Adicionar body apenas para métodos que suportam
-    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
-      requestOptions.body = JSON.stringify(req.body);
+    // Adicionar Authorization se existir
+    if (req.headers.authorization) {
+      options.headers.Authorization = req.headers.authorization;
     }
 
-    console.log('Request options:', JSON.stringify(requestOptions, null, 2));
+    // Adicionar body para métodos que suportam
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+      options.body = JSON.stringify(req.body);
+    }
 
-    const response = await fetch(targetUrl, requestOptions);
-    
-    console.log('Response status:', response.status);
-    console.log('Response headers:', JSON.stringify([...response.headers.entries()], null, 2));
+    console.log(`[${new Date().toISOString()}] Making request to VPS...`);
 
-    const data = await response.text();
-    console.log('Response data:', data);
-    
-    // Copiar headers da resposta, mas sobrescrever CORS
-    response.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== 'access-control-allow-origin') {
-        res.setHeader(key, value);
-      }
+    const response = await fetch(targetUrl, options);
+    const responseData = await response.text();
+
+    console.log(`[${new Date().toISOString()}] VPS Response: ${response.status}`);
+
+    // Retornar resposta
+    res.status(response.status).json({
+      success: response.ok,
+      status: response.status,
+      data: responseData ? JSON.parse(responseData) : null,
+      timestamp: new Date().toISOString()
     });
-    
-    // Forçar CORS para permitir requisições do Vercel
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    res.status(response.status).send(data);
+
   } catch (error) {
-    console.error('=== PROXY ERROR ===');
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('Target URL:', targetUrl);
+    console.error(`[${new Date().toISOString()}] Proxy Error:`, error.message);
     
-    // Garantir que CORS está configurado mesmo em caso de erro
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    res.status(500).json({ 
-      error: 'Proxy error', 
+    res.status(500).json({
+      success: false,
+      error: 'Proxy Error',
       message: error.message,
       targetUrl,
-      details: error.toString()
+      timestamp: new Date().toISOString()
     });
   }
 }

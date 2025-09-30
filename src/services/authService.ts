@@ -18,7 +18,7 @@ class AuthService {
 
   constructor() {
     // Usar sempre a URL configurada no env.ts
-    this.baseURL = import.meta.env.VITE_API_URL || 'http://72.60.166.177:5001/api';
+    this.baseURL = import.meta.env.VITE_API_URL || '/api';
     
     console.log('🌐 AuthService - URL do backend:', this.baseURL);
   }

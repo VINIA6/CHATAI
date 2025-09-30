@@ -7,7 +7,7 @@ class ChatService {
 
   constructor() {
     // Usar sempre a URL configurada no env.ts
-    const baseURL = import.meta.env.VITE_API_URL || 'http://72.60.166.177:5001/api';
+    const baseURL = import.meta.env.VITE_API_URL || '/api';
     
     console.log('🌐 ChatService - URL do backend:', baseURL);
 
