@@ -17,16 +17,8 @@ class AuthService {
   private readonly timeout = 10000;
 
   constructor() {
-    // Detectar se estamos acessando via IP da rede
-    const currentHost = window.location.hostname;
-    const isNetworkAccess = currentHost !== 'localhost' && currentHost !== '127.0.0.1';
-    
-    if (isNetworkAccess) {
-      // Usar o mesmo IP da rede para o backend
-      this.baseURL = `http://${currentHost}:5001/api`;
-    } else {
-      this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    }
+    // Usar sempre a URL configurada no env.ts
+    this.baseURL = import.meta.env.VITE_API_URL || 'http://72.60.166.177:5001/api';
     
     console.log('🌐 AuthService - URL do backend:', this.baseURL);
   }

@@ -6,17 +6,8 @@ class ChatService {
   private api: AxiosInstance;
 
   constructor() {
-    // Detectar se estamos acessando via IP da rede
-    const currentHost = window.location.hostname;
-    const isNetworkAccess = currentHost !== 'localhost' && currentHost !== '127.0.0.1';
-    
-    let baseURL: string;
-    if (isNetworkAccess) {
-      // Usar o mesmo IP da rede para o backend
-      baseURL = `http://${currentHost}:5001/api`;
-    } else {
-      baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    }
+    // Usar sempre a URL configurada no env.ts
+    const baseURL = import.meta.env.VITE_API_URL || 'http://72.60.166.177:5001/api';
     
     console.log('🌐 ChatService - URL do backend:', baseURL);
 
