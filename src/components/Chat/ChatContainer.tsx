@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, MoreVertical, Trash2, Download } from 'lucide-react';
-import { Message } from '../Message';
+import { Message as MessageComponent } from '../Message';
+import type { Message } from '../../types';
 import { ChatInput } from '../Input';
 import { useChat } from '../../hooks/useChat';
 import { useChatStore } from '../../store/chatStore';
@@ -312,7 +313,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
           ) : (
             <div className="py-4">
               {messages.map((message, index) => (
-                <Message
+                <MessageComponent
                   key={message.id}
                   message={message}
                   onRegenerate={() => regenerateResponse(index)}
