@@ -43,11 +43,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
-  const filteredTalks = useMemo(() =>
-    talks.filter(talk =>
+  const filteredTalks = useMemo(() => {
+    // Garantir que talks é um array antes de filtrar
+    if (!Array.isArray(talks)) {
+      console.error('❌ Sidebar - talks não é um array no filteredTalks:', talks);
+      return [];
+    }
+    
+    return talks.filter(talk =>
       talk.name.toLowerCase().includes(searchTerm.toLowerCase()) && !talk.is_deleted
-    ), [talks, searchTerm]
-  );
+    );
+  }, [talks, searchTerm]);
 
   // Load user talks on component mount or when user changes
   useEffect(() => {
@@ -65,7 +71,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       try {
         const userTalks = await chatService.getUserTalks();
         console.log('✅ Sidebar - Talks carregados:', userTalks);
-        setTalks(userTalks);
+        
+        // Garantir que userTalks é um array
+        if (Array.isArray(userTalks)) {
+          setTalks(userTalks);
+        } else {
+          console.error('❌ Sidebar - userTalks não é um array:', userTalks);
+          setTalks([]);
+          setTalksError('Formato de resposta inválido do servidor');
+        }
       } catch (error) {
         console.error('❌ Sidebar - Erro ao carregar talks:', error);
         setTalksError('Erro ao carregar conversas do servidor');

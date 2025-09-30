@@ -102,9 +102,18 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       timestamp: new Date(),
     };
 
-    // Adicionar mensagem do usuário ao chat
+    // Adicionar mensagem do bot "digitando..."
+    const typingMessage: Message = {
+      id: `typing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      content: '',
+      type: 'bot',
+      timestamp: new Date(),
+      isTyping: true,
+    };
+
+    // Adicionar mensagem do usuário e indicador de digitação ao chat
     const currentMessages = useChatStore.getState().messages;
-    loadTalkMessages([...currentMessages, userMessage]);
+    loadTalkMessages([...currentMessages, userMessage, typingMessage]);
 
     try {
       if (isNewTalk || !currentTalkId) {
@@ -112,7 +121,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         console.log('🆕 ChatContainer - Criando nova conversa');
         const result = await chatService.createNewTalk(message);
         
-        // Carregar mensagens no store
+        // Remover mensagem de digitação e carregar mensagens reais
         loadTalkMessages(result.messages);
         // Definir como conversa existente após criação
         setCurrentTalk(result.talk.talk_id, false);
@@ -130,7 +139,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
         console.log('💬 ChatContainer - Enviando para conversa existente:', currentTalkId);
         const messages = await chatService.sendMessageToExistingTalk(currentTalkId, message);
         
-        // Carregar mensagens atualizadas no store
+        // Remover mensagem de digitação e carregar mensagens atualizadas
         loadTalkMessages(messages);
         
         console.log('✅ ChatContainer - Mensagem enviada para conversa existente');
@@ -138,18 +147,41 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     } catch (error) {
       console.error('❌ ChatContainer - Erro ao enviar mensagem:', error);
       
-      // Adicionar mensagem de erro do bot
+      // Remover mensagem de digitação
+      const currentMessages = useChatStore.getState().messages;
+      const messagesWithoutTyping = currentMessages.filter(m => !m.isTyping);
+      
+      // Criar mensagem de erro amigável
+      const errorMsg = error instanceof Error ? error.message : 'Erro ao enviar mensagem';
+      let errorContent = `❌ Desculpe, ocorreu um erro ao processar sua mensagem.\n\n`;
+      
+      // Adicionar mensagem específica baseada no tipo de erro
+      if (errorMsg.includes('Timeout') || errorMsg.includes('timeout')) {
+        errorContent += `⏱️ **O que aconteceu:**\nO sistema demorou mais que o esperado para responder.\n\n`;
+        errorContent += `💡 **O que fazer:**\n`;
+        errorContent += `• Aguarde alguns instantes\n`;
+        errorContent += `• Tente reformular sua pergunta de forma mais simples\n`;
+        errorContent += `• Se o problema persistir, entre em contato com o suporte`;
+      } else if (errorMsg.includes('Network') || errorMsg.includes('rede')) {
+        errorContent += `🌐 **O que aconteceu:**\nProblema de conexão com o servidor.\n\n`;
+        errorContent += `💡 **O que fazer:**\n`;
+        errorContent += `• Verifique sua conexão com a internet\n`;
+        errorContent += `• Tente novamente em alguns instantes`;
+      } else {
+        errorContent += `📝 **Detalhes:**\n${errorMsg}\n\n`;
+        errorContent += `💡 **Sugestão:** Tente novamente em alguns instantes.`;
+      }
+      
       const errorMessage: Message = {
         id: `bot_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        content: `❌ Desculpe, ocorreu um erro ao processar sua mensagem:\n\n"${error instanceof Error ? error.message : 'Erro ao enviar mensagem'}"\n\nTente novamente em alguns instantes.`,
+        content: errorContent,
         type: 'bot',
         timestamp: new Date(),
         isError: true,
       };
 
-      // Adicionar mensagem de erro ao chat
-      const currentMessages = useChatStore.getState().messages;
-      loadTalkMessages([...currentMessages, errorMessage]);
+      // Adicionar mensagem de erro ao chat (sem o typing indicator)
+      loadTalkMessages([...messagesWithoutTyping, errorMessage]);
       
       setError(error instanceof Error ? error.message : 'Erro ao enviar mensagem');
     } finally {

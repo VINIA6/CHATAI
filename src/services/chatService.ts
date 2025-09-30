@@ -6,14 +6,26 @@ class ChatService {
   private api: AxiosInstance;
 
   constructor() {
-    // Usar sempre a URL configurada no env.ts
-    const baseURL = import.meta.env.VITE_API_URL || '/api';
+    // Detectar ambiente e usar URL apropriada
+    let baseURL: string;
+    if (import.meta.env.VITE_API_URL) {
+      // Se há variável de ambiente, usar ela
+      baseURL = import.meta.env.VITE_API_URL;
+    } else if (import.meta.env.PROD) {
+      // Se está em produção (Vercel), usar proxy relativo
+      baseURL = '/api';
+    } else {
+      // Em desenvolvimento local, usar URL direta do backend
+      baseURL = 'http://72.60.166.177:5001/api';
+    }
     
     console.log('🌐 ChatService - URL do backend:', baseURL);
+    console.log('🌐 ChatService - Ambiente:', import.meta.env.MODE);
+    console.log('🌐 ChatService - Produção:', import.meta.env.PROD);
 
     this.api = axios.create({
       baseURL,
-      timeout: 30000,
+      timeout: 120000, // 2 minutos para agentes lentos
       headers: {
         'Content-Type': 'application/json',
       },
@@ -56,6 +68,38 @@ class ChatService {
         return Promise.reject(error);
       }
     );
+  }
+
+  // Helper para retry em caso de timeout
+  private async retryOnTimeout<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 2,
+    retryDelay: number = 2000
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Tentativa ${attempt + 1}/${maxRetries + 1}`);
+        return await fn();
+      } catch (error) {
+        lastError = error as Error;
+        
+        // Se for timeout e ainda temos tentativas, retry
+        if (axios.isAxiosError(error) && 
+            (error.code === 'ECONNABORTED' || error.message.includes('timeout')) &&
+            attempt < maxRetries) {
+          console.warn(`⏱️ Timeout na tentativa ${attempt + 1}, tentando novamente em ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+        
+        // Se não é timeout ou não temos mais tentativas, lançar erro
+        throw error;
+      }
+    }
+    
+    throw lastError;
   }
 
   async sendMessage(request: ChatRequest): Promise<ChatResponse> {
@@ -167,6 +211,13 @@ class ChatService {
   async getUserTalks(): Promise<Talk[]> {
     try {
       const response = await this.api.get<Talk[]>('/talk-user');
+      
+      // Garantir que sempre retornamos um array
+      if (!Array.isArray(response.data)) {
+        console.error('❌ ChatService - getUserTalks retornou não-array:', response.data);
+        return [];
+      }
+      
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -201,7 +252,14 @@ class ChatService {
   async createNewTalk(message: string): Promise<{ talk: { talk_id: string; name: string; created_at: string }; messages: Message[] }> {
     try {
       console.log('🔍 ChatService - Criando nova conversa com mensagem:', message);
-      const response = await this.api.post('/talk', { message });
+      
+      // Usar retry para operações críticas (agente pode ser lento)
+      const response = await this.retryOnTimeout(
+        () => this.api.post('/talk', { message }),
+        2, // 2 retries
+        3000 // 3 segundos entre tentativas
+      );
+      
       console.log('✅ ChatService - Nova conversa criada:', response.data);
       
       // Converter mensagens da API para o formato do frontend
@@ -220,11 +278,18 @@ class ChatService {
   async sendMessageToExistingTalk(talkId: string, message: string): Promise<Message[]> {
     try {
       console.log('🔍 ChatService - Enviando mensagem para conversa existente:', { talkId, message });
-      const response = await this.api.post('/message', {
-        talk_id: talkId,
-        content: message,
-        type: 'user'
-      });
+      
+      // Usar retry para operações críticas (agente pode ser lento)
+      const response = await this.retryOnTimeout(
+        () => this.api.post('/message', {
+          talk_id: talkId,
+          content: message,
+          type: 'user'
+        }),
+        2, // 2 retries
+        3000 // 3 segundos entre tentativas
+      );
+      
       console.log('✅ ChatService - Mensagem enviada:', response.data);
       
       // Converter mensagens da API para o formato do frontend
@@ -265,10 +330,27 @@ class ChatService {
 
   private handleError(error: unknown): Error {
     if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.message || error.message;
-      return new Error(message);
+      const errorMessage = error.response?.data?.message || error.message;
+      
+      // Tratamento específico para erros conhecidos do backend
+      if (errorMessage.includes('Timeout ao conectar com n8n')) {
+        return new Error(
+          'O sistema está demorando mais que o esperado para processar sua mensagem. ' +
+          'Isso geralmente acontece quando o agente está analisando perguntas complexas. ' +
+          'Por favor, aguarde alguns instantes e tente novamente.'
+        );
+      }
+      
+      if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+        return new Error(
+          'O servidor demorou muito para responder. ' +
+          'Por favor, tente novamente em alguns instantes.'
+        );
+      }
+      
+      return new Error(errorMessage);
     }
-    return error instanceof Error ? error : new Error('Unknown error occurred');
+    return error instanceof Error ? error : new Error('Erro desconhecido ao processar sua mensagem');
   }
 }
 

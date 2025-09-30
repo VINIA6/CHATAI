@@ -14,13 +14,24 @@ interface ApiLoginResponse {
 
 class AuthService {
   private readonly baseURL: string;
-  private readonly timeout = 10000;
+  private readonly timeout = 120000; // 2 minutos para agentes lentos
 
   constructor() {
-    // Usar sempre a URL configurada no env.ts
-    this.baseURL = import.meta.env.VITE_API_URL || '/api';
+    // Detectar ambiente e usar URL apropriada
+    if (import.meta.env.VITE_API_URL) {
+      // Se há variável de ambiente, usar ela
+      this.baseURL = import.meta.env.VITE_API_URL;
+    } else if (import.meta.env.PROD) {
+      // Se está em produção (Vercel), usar proxy relativo
+      this.baseURL = '/api';
+    } else {
+      // Em desenvolvimento local, usar URL direta do backend
+      this.baseURL = 'http://72.60.166.177:5001/api';
+    }
     
     console.log('🌐 AuthService - URL do backend:', this.baseURL);
+    console.log('🌐 AuthService - Ambiente:', import.meta.env.MODE);
+    console.log('🌐 AuthService - Produção:', import.meta.env.PROD);
   }
 
   async login(credentials: LoginCredentials): Promise<LoginResponse> {

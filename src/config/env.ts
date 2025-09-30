@@ -1,6 +1,22 @@
+// Detectar ambiente e usar URL apropriada
+const getApiUrl = () => {
+  // Se há variável de ambiente, usar ela
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Se está em produção (Vercel), usar proxy relativo
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  
+  // Em desenvolvimento local, usar URL direta do backend
+  return 'http://72.60.166.177:5001/api';
+};
+
 export const config = {
   // API Configuration
-  apiUrl: import.meta.env.VITE_API_URL || '/api',
+  apiUrl: getApiUrl(),
   
   // App Configuration
   appName: import.meta.env.VITE_APP_NAME || 'ChatBot FIEC',

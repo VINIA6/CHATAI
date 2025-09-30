@@ -102,7 +102,7 @@ export const Message: React.FC<MessageProps> = ({
                   animationDelay: '0.4s' 
                 }} />
               </div>
-              <span className="text-sm text-gray-300 font-medium">Digitando...</span>
+              <span className="text-sm text-gray-300 font-medium">Pensando... isso pode levar alguns segundos</span>
             </div>
           ) : (
             <div className="prose prose-sm max-w-none">
