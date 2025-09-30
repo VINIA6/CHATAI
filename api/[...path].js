@@ -28,8 +28,10 @@ export default async function handler(req, res) {
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Vercel-Proxy/1.0',
+        'Origin': 'https://vercel.app', // Simular origem do Vercel
         ...(req.headers.authorization && { Authorization: req.headers.authorization })
-      }
+      },
+      timeout: 10000 // 10 segundos de timeout
     };
 
     // Adicionar body apenas para métodos que suportam
@@ -47,10 +49,17 @@ export default async function handler(req, res) {
     const data = await response.text();
     console.log('Response data:', data);
     
-    // Copiar headers da resposta
+    // Copiar headers da resposta, mas sobrescrever CORS
     response.headers.forEach((value, key) => {
-      res.setHeader(key, value);
+      if (key.toLowerCase() !== 'access-control-allow-origin') {
+        res.setHeader(key, value);
+      }
     });
+    
+    // Forçar CORS para permitir requisições do Vercel
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     res.status(response.status).send(data);
   } catch (error) {
@@ -58,6 +67,11 @@ export default async function handler(req, res) {
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
     console.error('Target URL:', targetUrl);
+    
+    // Garantir que CORS está configurado mesmo em caso de erro
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
     res.status(500).json({ 
       error: 'Proxy error', 
