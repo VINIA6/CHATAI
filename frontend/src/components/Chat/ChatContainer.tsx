@@ -5,6 +5,7 @@ import { Message } from '../Message';
 import { ChatInput } from '../Input';
 import { useChat } from '../../hooks/useChat';
 import { useChatStore } from '../../store/chatStore';
+import { chatService } from '../../services/chatService';
 import { cn } from '../../utils';
 
 interface ChatContainerProps {
@@ -12,12 +13,17 @@ interface ChatContainerProps {
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
-  const { messages, isLoading, sendMessage, regenerateResponse } = useChat();
+  const { messages, isLoading, regenerateResponse } = useChat();
   const { 
     clearMessages, 
     conversations, 
     currentConversationId,
-    loadTalkMessages
+    loadTalkMessages,
+    currentTalkId,
+    isNewTalk,
+    setCurrentTalk,
+    setLoading,
+    setError
   } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -69,6 +75,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
       
       // Carregar mensagens da conversa no store
       loadTalkMessages(talkMessages);
+      // Definir como conversa existente (não nova)
+      setCurrentTalk(talkId, false);
       console.log('✅ ChatContainer - Mensagens carregadas no store:', talkMessages.length, 'mensagens');
     };
 
@@ -77,7 +85,76 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     return () => {
       window.removeEventListener('loadTalkMessages', handleLoadTalkMessages as EventListener);
     };
-  }, [loadTalkMessages]);
+  }, [loadTalkMessages, setCurrentTalk]);
+
+  // Função para enviar mensagem
+  const handleSendMessage = async (message: string) => {
+    console.log('🔍 ChatContainer - Enviando mensagem:', { message, currentTalkId, isNewTalk });
+    setLoading(true);
+    setError(null);
+
+    // Sempre adicionar a mensagem do usuário primeiro
+    const userMessage: Message = {
+      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      content: message,
+      type: 'user',
+      timestamp: new Date(),
+    };
+
+    // Adicionar mensagem do usuário ao chat
+    const currentMessages = useChatStore.getState().messages;
+    loadTalkMessages([...currentMessages, userMessage]);
+
+    try {
+      if (isNewTalk || !currentTalkId) {
+        // Nova conversa - usar endpoint /api/talk
+        console.log('🆕 ChatContainer - Criando nova conversa');
+        const result = await chatService.createNewTalk(message);
+        
+        // Carregar mensagens no store
+        loadTalkMessages(result.messages);
+        // Definir como conversa existente após criação
+        setCurrentTalk(result.talk.talk_id, false);
+        
+        // Disparar evento para atualizar o sidebar
+        window.dispatchEvent(new CustomEvent('talkCreated', {
+          detail: {
+            talk: result.talk
+          }
+        }));
+        
+        console.log('✅ ChatContainer - Nova conversa criada:', result.talk);
+      } else {
+        // Conversa existente - usar endpoint /api/message
+        console.log('💬 ChatContainer - Enviando para conversa existente:', currentTalkId);
+        const messages = await chatService.sendMessageToExistingTalk(currentTalkId, message);
+        
+        // Carregar mensagens atualizadas no store
+        loadTalkMessages(messages);
+        
+        console.log('✅ ChatContainer - Mensagem enviada para conversa existente');
+      }
+    } catch (error) {
+      console.error('❌ ChatContainer - Erro ao enviar mensagem:', error);
+      
+      // Adicionar mensagem de erro do bot
+      const errorMessage: Message = {
+        id: `bot_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        content: `❌ Desculpe, ocorreu um erro ao processar sua mensagem:\n\n"${error instanceof Error ? error.message : 'Erro ao enviar mensagem'}"\n\nTente novamente em alguns instantes.`,
+        type: 'bot',
+        timestamp: new Date(),
+        isError: true,
+      };
+
+      // Adicionar mensagem de erro ao chat
+      const currentMessages = useChatStore.getState().messages;
+      loadTalkMessages([...currentMessages, errorMessage]);
+      
+      setError(error instanceof Error ? error.message : 'Erro ao enviar mensagem');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleScrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -254,7 +331,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
 
       {/* Input area */}
       <ChatInput
-        onSendMessage={sendMessage}
+        onSendMessage={handleSendMessage}
         disabled={isLoading}
         isLoading={isLoading}
         showFileUpload={true}

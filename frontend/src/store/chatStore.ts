@@ -20,6 +20,11 @@ interface ChatStore extends ChatState {
   setCurrentConversation: (id: string | null) => void;
   loadConversation: (id: string) => void;
   
+  // Current Talk State
+  currentTalkId: string | null;
+  isNewTalk: boolean;
+  setCurrentTalk: (talkId: string | null, isNew: boolean) => void;
+  
   // Utils
   generateMessageId: () => string;
   loadTalkMessages: (messages: Message[]) => void;
@@ -35,6 +40,8 @@ export const useChatStore = create<ChatStore>()(
         error: null,
         currentConversationId: null,
         conversations: [],
+        currentTalkId: null,
+        isNewTalk: false,
 
         // Message actions
         addMessage: (messageData) => {
@@ -149,6 +156,14 @@ export const useChatStore = create<ChatStore>()(
             messages: [...messages],
             error: null,
             currentConversationId: null, // Não é uma conversa local
+          });
+        },
+
+        setCurrentTalk: (talkId, isNew) => {
+          console.log('🏪 ChatStore - Definindo conversa atual:', { talkId, isNew });
+          set({
+            currentTalkId: talkId,
+            isNewTalk: isNew,
           });
         },
       }),

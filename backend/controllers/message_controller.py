@@ -34,3 +34,59 @@ class MessageController:
             return jsonify(messages_json), 200
         except Exception as e:
             return jsonify({'message': f'An error occurred: {str(e)}'}), 500
+
+    @token_required
+    def send_message_to_talk(self):
+        """
+        Envia uma mensagem para uma conversa existente e retorna a resposta do bot
+        """
+        try:
+            # Pegar user_id do token JWT
+            user_id = g.current_user.get('user_id')
+            if not user_id:
+                return jsonify({'message': 'User ID not found in token'}), 400
+
+            # Pegar dados da requisição
+            data = request.get_json()
+            if not data:
+                return jsonify({'message': 'Request body is required'}), 400
+
+            talk_id = data.get('talk_id')
+            content = data.get('content')
+            message_type = data.get('type', 'user')
+
+            if not talk_id:
+                return jsonify({'message': 'talk_id is required'}), 400
+            if not content:
+                return jsonify({'message': 'content is required'}), 400
+
+            # 1. Criar mensagem do usuário
+            user_message = self.message_use_case.create_message(
+                content=content,
+                message_type=message_type,
+                talk_id=talk_id,
+                user_id=user_id
+            )
+
+            # 2. Criar resposta do bot
+            bot_response = "Aguardando fluxo n8n ser implementado."
+            bot_message = self.message_use_case.create_message(
+                content=bot_response,
+                message_type='bot',
+                talk_id=talk_id,
+                user_id=user_id
+            )
+
+            # 3. Buscar todas as mensagens da conversa para retornar
+            all_messages = self.message_use_case.get_messages_by_talk_and_user(talk_id, user_id)
+            messages_json = json.loads(json_util.dumps(all_messages))
+
+            # 4. Retornar resposta com as mensagens
+            response = {
+                'messages': messages_json
+            }
+
+            return jsonify(response), 201
+
+        except Exception as e:
+            return jsonify({'message': f'An error occurred: {str(e)}'}), 500

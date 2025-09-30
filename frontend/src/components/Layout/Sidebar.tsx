@@ -8,7 +8,9 @@ import {
   LogOut,
   User,
   Shield,
-  BarChart3
+  BarChart3,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 // useChatStore removido - apenas conversas do banco de dados
 import { useAuth } from '../../hooks/useAuth';
@@ -38,6 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [talks, setTalks] = useState<Talk[]>([]);
   const [loadingTalks, setLoadingTalks] = useState(false);
   const [talksError, setTalksError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
 
   const filteredTalks = useMemo(() =>
     talks.filter(talk =>
@@ -79,6 +83,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => clearTimeout(timeoutId);
   }, [user?.id]); // Dependência mais específica
 
+  // Listen for new talk creation to update sidebar
+  useEffect(() => {
+    const handleTalkCreated = (event: CustomEvent) => {
+      const { talk } = event.detail;
+      console.log('🆕 Sidebar - Nova conversa criada:', talk);
+      
+      // Adicionar a nova conversa à lista
+      const newTalk: Talk = {
+        _id: { $oid: talk.talk_id },
+        name: talk.name,
+        create_at: { $date: talk.created_at },
+        update_at: { $date: talk.created_at },
+        user_id: { $oid: user?.id || '' },
+        is_deleted: false
+      };
+      
+      setTalks(prev => [newTalk, ...prev]);
+      console.log('✅ Sidebar - Lista de conversas atualizada');
+    };
+
+    window.addEventListener('talkCreated', handleTalkCreated as EventListener);
+    
+    return () => {
+      window.removeEventListener('talkCreated', handleTalkCreated as EventListener);
+    };
+  }, [user?.id]);
+
   // Funções removidas - apenas conversas do banco de dados
 
   const handleSelectTalk = async (talk: Talk) => {
@@ -104,6 +135,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     } catch (error) {
       console.error('❌ Sidebar - Erro ao carregar mensagens:', error);
+      // Aqui você pode adicionar um toast de erro se quiser
+    }
+  };
+
+  const handleEditTalk = (talk: Talk) => {
+    console.log('✏️ Sidebar - Editando conversa:', talk.name);
+    setEditingId(talk._id.$oid);
+    setEditTitle(talk.name);
+  };
+
+  const handleSaveEdit = async (talkId: string) => {
+    if (!editTitle.trim()) return;
+    
+    try {
+      console.log('💾 Sidebar - Salvando edição:', { talkId, newTitle: editTitle });
+      await chatService.updateTalk(talkId, editTitle.trim());
+      
+      // Atualizar a lista de conversas
+      setTalks(prev => prev.map(talk => 
+        talk._id.$oid === talkId 
+          ? { ...talk, name: editTitle.trim() }
+          : talk
+      ));
+      
+      setEditingId(null);
+      setEditTitle('');
+      console.log('✅ Sidebar - Conversa atualizada com sucesso');
+    } catch (error) {
+      console.error('❌ Sidebar - Erro ao atualizar conversa:', error);
+      // Aqui você pode adicionar um toast de erro se quiser
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditTitle('');
+  };
+
+  const handleDeleteTalk = async (talk: Talk) => {
+    if (!confirm(`Tem certeza que deseja deletar a conversa "${talk.name}"?`)) {
+      return;
+    }
+    
+    try {
+      console.log('🗑️ Sidebar - Deletando conversa:', talk.name);
+      await chatService.deleteTalk(talk._id.$oid);
+      
+      // Remover da lista de conversas
+      setTalks(prev => prev.filter(t => t._id.$oid !== talk._id.$oid));
+      
+      console.log('✅ Sidebar - Conversa deletada com sucesso');
+    } catch (error) {
+      console.error('❌ Sidebar - Erro ao deletar conversa:', error);
       // Aqui você pode adicionar um toast de erro se quiser
     }
   };
@@ -226,22 +310,81 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="group mb-2 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-700 border border-gray-600"
-                        onClick={() => handleSelectTalk(talk)}
+                        className="group mb-2 p-3 rounded-lg transition-colors hover:bg-gray-700 border border-gray-600"
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate text-white">
-                              {talk.name}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {formatRelativeTime(new Date(talk.update_at.$date))}
-                            </p>
+                        {editingId === talk._id.$oid ? (
+                          // Modo de edição
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              className="w-full px-2 py-1 text-sm bg-gray-800 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleSaveEdit(talk._id.$oid);
+                                } else if (e.key === 'Escape') {
+                                  handleCancelEdit();
+                                }
+                              }}
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveEdit(talk._id.$oid)}
+                                className="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                        ) : (
+                          // Modo normal
+                          <div 
+                            className="flex items-start justify-between cursor-pointer"
+                            onClick={() => handleSelectTalk(talk)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate text-white">
+                                {talk.name}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {formatRelativeTime(new Date(talk.update_at.$date))}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 ml-2">
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditTalk(talk);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                                  title="Editar conversa"
+                                >
+                                  <Edit3 size={14} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteTalk(talk);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                  title="Deletar conversa"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </motion.div>
                     ))}
                   </div>

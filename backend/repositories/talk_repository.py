@@ -25,3 +25,26 @@ class TalkRepository:
     def delete(self, talk_id: str) -> bool:
         result = self.collection.update_one({'_id': ObjectId(talk_id)}, {'$set': {'is_deleted': True}})
         return result.modified_count > 0
+
+    def update_by_id_and_user(self, talk_id: str, user_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Atualiza uma conversa específica de um usuário específico
+        """
+        result = self.collection.update_one(
+            {'_id': ObjectId(talk_id), 'user_id': ObjectId(user_id), 'is_deleted': False},
+            {'$set': update_data}
+        )
+        if result.modified_count > 0:
+            return self.get_by_id(talk_id)
+        return None
+
+    def soft_delete_by_id_and_user(self, talk_id: str, user_id: str) -> bool:
+        """
+        Deleta logicamente uma conversa específica de um usuário específico
+        """
+        from datetime import datetime
+        result = self.collection.update_one(
+            {'_id': ObjectId(talk_id), 'user_id': ObjectId(user_id), 'is_deleted': False},
+            {'$set': {'is_deleted': True, 'update_at': datetime.utcnow()}}
+        )
+        return result.modified_count > 0

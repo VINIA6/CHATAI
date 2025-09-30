@@ -16,6 +16,7 @@ const MainLayoutComponent: React.FC<MainLayoutProps> = ({ children }) => {
     clearMessages,
     addConversation,
     updateConversation,
+    setCurrentTalk,
   } = useChatStore();
 
   // Debug: Log when MainLayout renders
@@ -95,7 +96,9 @@ const MainLayoutComponent: React.FC<MainLayoutProps> = ({ children }) => {
     // Limpar mensagens e iniciar nova conversa
     clearMessages();
     setCurrentConversation(null);
-  }, [updateConversation, generateConversationTitle, addConversation, user?.id, clearMessages, setCurrentConversation]);
+    // Definir como nova conversa para usar endpoint /api/talk
+    setCurrentTalk(null, true);
+  }, [updateConversation, generateConversationTitle, addConversation, user?.id, clearMessages, setCurrentConversation, setCurrentTalk]);
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarOpen(prev => !prev);

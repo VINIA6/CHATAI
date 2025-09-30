@@ -29,6 +29,23 @@ def get_talks_by_user():
 def get_messages_by_talk():
     return message_controller.get_messages_by_talk()
 
+@api_bp.route('/message', methods=['POST'])
+def send_message():
+    return message_controller.send_message_to_talk()
+
+@api_bp.route('/talk', methods=['POST'])
+def create_talk():
+    return talk_controller.create_talk_with_message()
+
+@api_bp.route('/talk', methods=['PUT'])
+def update_talk():
+    return talk_controller.update_talk()
+
+@api_bp.route('/talk', methods=['DELETE'])
+def delete_talk():
+    return talk_controller.delete_talk()
+
+
 @api_bp.route('/health', methods=['GET'])
 def health():
     """Health check da API"""

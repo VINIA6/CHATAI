@@ -32,3 +32,14 @@ class MessageRepository:
     def delete(self, message_id: str) -> bool:
         result = self.collection.update_one({'_id': ObjectId(message_id)}, {'$set': {'is_deleted': True}})
         return result.modified_count > 0
+
+    def soft_delete_by_talk_id(self, talk_id: str) -> bool:
+        """
+        Deleta logicamente todas as mensagens de uma conversa
+        """
+        from datetime import datetime
+        result = self.collection.update_many(
+            {'talk_id': ObjectId(talk_id), 'is_deleted': False},
+            {'$set': {'is_deleted': True, 'update_at': datetime.utcnow()}}
+        )
+        return result.modified_count > 0

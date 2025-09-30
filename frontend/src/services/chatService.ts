@@ -207,6 +207,71 @@ class ChatService {
     };
   }
 
+  async createNewTalk(message: string): Promise<{ talk: { talk_id: string; name: string; created_at: string }; messages: Message[] }> {
+    try {
+      console.log('🔍 ChatService - Criando nova conversa com mensagem:', message);
+      const response = await this.api.post('/talk', { message });
+      console.log('✅ ChatService - Nova conversa criada:', response.data);
+      
+      // Converter mensagens da API para o formato do frontend
+      const messages = response.data.messages.map(this.convertApiMessageToMessage);
+      
+      return {
+        talk: response.data.talk,
+        messages: messages
+      };
+    } catch (error) {
+      console.error('❌ ChatService - Erro ao criar nova conversa:', error);
+      throw this.handleError(error);
+    }
+  }
+
+  async sendMessageToExistingTalk(talkId: string, message: string): Promise<Message[]> {
+    try {
+      console.log('🔍 ChatService - Enviando mensagem para conversa existente:', { talkId, message });
+      const response = await this.api.post('/message', {
+        talk_id: talkId,
+        content: message,
+        type: 'user'
+      });
+      console.log('✅ ChatService - Mensagem enviada:', response.data);
+      
+      // Converter mensagens da API para o formato do frontend
+      const messages = response.data.messages.map(this.convertApiMessageToMessage);
+      
+      return messages;
+    } catch (error) {
+      console.error('❌ ChatService - Erro ao enviar mensagem:', error);
+      throw this.handleError(error);
+    }
+  }
+
+  async updateTalk(talkId: string, newName: string): Promise<{ talk_id: string; name: string; updated_at: string }> {
+    try {
+      console.log('🔍 ChatService - Atualizando conversa:', { talkId, newName });
+      const response = await this.api.put('/talk', {
+        talk_id: talkId,
+        name: newName
+      });
+      console.log('✅ ChatService - Conversa atualizada:', response.data);
+      return response.data.talk;
+    } catch (error) {
+      console.error('❌ ChatService - Erro ao atualizar conversa:', error);
+      throw this.handleError(error);
+    }
+  }
+
+  async deleteTalk(talkId: string): Promise<void> {
+    try {
+      console.log('🔍 ChatService - Deletando conversa:', talkId);
+      const response = await this.api.delete(`/talk?talk_id=${talkId}`);
+      console.log('✅ ChatService - Conversa deletada:', response.data);
+    } catch (error) {
+      console.error('❌ ChatService - Erro ao deletar conversa:', error);
+      throw this.handleError(error);
+    }
+  }
+
   private handleError(error: unknown): Error {
     if (axios.isAxiosError(error)) {
       const message = error.response?.data?.message || error.message;
