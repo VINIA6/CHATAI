@@ -42,7 +42,8 @@ class AuthService {
       console.log('📤 AuthService - Enviando para backend:', {
         url: `${this.baseURL}/login`,
         username: requestData.username,
-        hasPassword: !!requestData.password
+        hasPassword: !!requestData.password,
+        fullURL: `${this.baseURL}/login`
       });
       
       const response = await axios.post<ApiLoginResponse>(
