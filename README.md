@@ -138,17 +138,5 @@ VITE_ENABLE_STREAMING=true
 4. Push para a branch (`git push origin feature/nova-feature`)
 5. Abra um Pull Request
 
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para detalhes.
-
-## 📞 Suporte
-
-Para suporte e dúvidas:
-- 📧 Email: suporte@fiec.org.br
-- 📱 WhatsApp: (85) 9999-9999
-- 🌐 Website: https://www.fiec.org.br
 
 ---
-
-Desenvolvido com ❤️ para a FIEC
