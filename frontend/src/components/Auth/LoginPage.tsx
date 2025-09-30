@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Eye, 
@@ -11,9 +11,10 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { ErrorModal } from '../UI';
+import { RenderTracker } from '../Debug/RenderTracker';
 import type { LoginCredentials } from '../../types';
 
-export const LoginPage: React.FC = () => {
+const LoginPageComponent: React.FC = () => {
   const { login, isLoading, error, clearError } = useAuthStore();
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: '',
@@ -52,9 +53,11 @@ export const LoginPage: React.FC = () => {
     },
   ];
 
+  // Limpar erros apenas na montagem do componente
   useEffect(() => {
     clearError();
-  }, [clearError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Array vazio para executar apenas uma vez - clearError é estável
 
   // Mostrar modal quando houver erro
   useEffect(() => {
@@ -63,7 +66,7 @@ export const LoginPage: React.FC = () => {
     }
   }, [error]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!credentials.email.trim() || !credentials.password.trim()) {
@@ -75,35 +78,52 @@ export const LoginPage: React.FC = () => {
     } catch {
       // Erro já tratado no store
     }
-  };
+  }, [credentials, login]);
 
-  const handleDemoLogin = (demoUser: typeof demoUsers[0]) => {
-    setCredentials({
+  const handleDemoLogin = useCallback((demoUser: typeof demoUsers[0]) => {
+    console.log('🎯 Demo Login - Preenchendo campos para:', demoUser.name);
+    
+    const demoCredentials = {
       email: demoUser.email,
       password: demoUser.password,
       rememberMe: false,
-    });
+    };
+    
+    // Apenas preencher os campos, não fazer login automático
+    setCredentials(demoCredentials);
     setSelectedDemo(demoUser.id);
-  };
+    
+    // Limpar erros ao selecionar demo
+    clearError();
+    setShowErrorModal(false);
+    
+    console.log('✅ Campos preenchidos. Usuário deve clicar em "Entrar" para fazer login.');
+  }, [clearError]);
 
-  const handleInputChange = (field: keyof LoginCredentials, value: string | boolean) => {
+  const handleInputChange = useCallback((field: keyof LoginCredentials, value: string | boolean) => {
     setCredentials(prev => ({
       ...prev,
       [field]: value,
     }));
-    if (error) {
-      clearError();
-      setShowErrorModal(false);
+    
+    // Limpar seleção demo ao digitar
+    if (selectedDemo) {
+      setSelectedDemo('');
     }
-  };
+    
+    // Limpar erros ao digitar (sem dependência de error para evitar loop)
+    clearError();
+    setShowErrorModal(false);
+  }, [selectedDemo, clearError]);
 
-  const handleCloseErrorModal = () => {
+  const handleCloseErrorModal = useCallback(() => {
     setShowErrorModal(false);
     clearError();
-  };
+  }, [clearError]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-emerald-900 flex items-center justify-center p-4">
+      <RenderTracker componentName="LoginPage" props={{ isLoading, error: !!error }} />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -227,12 +247,20 @@ export const LoginPage: React.FC = () => {
                 <button
                   key={user.id}
                   onClick={() => handleDemoLogin(user)}
-                  className={`w-full p-3 text-left rounded-lg border transition-colors duration-200 ${
-                    selectedDemo === user.id
+                  disabled={isLoading}
+                  className={`w-full p-3 text-left rounded-lg border transition-colors duration-200 relative ${
+                    selectedDemo === user.id && isLoading
+                      ? 'bg-emerald-900 border-emerald-600 text-emerald-300 opacity-75'
+                      : selectedDemo === user.id
                       ? 'bg-emerald-900 border-emerald-600 text-emerald-300'
-                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
                 >
+                  {selectedDemo === user.id && isLoading && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Loader2 size={16} className="animate-spin text-emerald-400" />
+                    </div>
+                  )}
                   <div className="font-medium text-sm">{user.name}</div>
                   <div className="text-xs text-gray-400 mt-1">{user.description}</div>
                   <div className="text-xs text-gray-500 mt-1">
@@ -273,3 +301,6 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
+
+export const LoginPage = memo(LoginPageComponent);
+LoginPage.displayName = 'LoginPage';

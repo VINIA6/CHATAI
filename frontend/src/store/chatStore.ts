@@ -22,6 +22,7 @@ interface ChatStore extends ChatState {
   
   // Utils
   generateMessageId: () => string;
+  loadTalkMessages: (messages: Message[]) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -140,6 +141,15 @@ export const useChatStore = create<ChatStore>()(
         // Utilities
         generateMessageId: () => {
           return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        },
+
+        loadTalkMessages: (messages) => {
+          console.log('🏪 ChatStore - Carregando mensagens da conversa:', messages.length, 'mensagens');
+          set({
+            messages: [...messages],
+            error: null,
+            currentConversationId: null, // Não é uma conversa local
+          });
         },
       }),
       {

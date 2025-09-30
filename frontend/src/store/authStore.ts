@@ -14,9 +14,8 @@ interface AuthStore extends AuthState {
   
   // Utils
   isTokenValid: () => boolean;
-  refreshSession: () => Promise<void>;
+  checkSession: () => void;
 }
-
 
 export const useAuthStore = create<AuthStore>()(
   devtools(
@@ -31,10 +30,25 @@ export const useAuthStore = create<AuthStore>()(
 
         // Actions
         login: async (credentials) => {
+          console.log('🏪 AuthStore - Recebendo credenciais:', {
+            email: credentials.email,
+            hasPassword: !!credentials.password,
+            rememberMe: credentials.rememberMe
+          });
+          
           set({ isLoading: true, error: null });
           
           try {
+            console.log('📡 AuthStore - Chamando authService.login...');
             const response = await authService.login(credentials);
+            console.log('📥 AuthStore - Resposta recebida:', {
+              hasUser: !!response.user,
+              hasToken: !!response.token,
+              userName: response.user?.name,
+              expiresIn: response.expiresIn
+            });
+            
+            const expiresAt = authService.getTokenExpiryTime(response.expiresIn);
             
             set({
               user: response.user,
@@ -45,13 +59,15 @@ export const useAuthStore = create<AuthStore>()(
             });
             
             // Armazenar tempo de expiração
-            const expiresAt = Date.now() + response.expiresIn;
             localStorage.setItem('auth_expires_at', expiresAt.toString());
+            console.log('✅ AuthStore - Login concluído com sucesso');
             
           } catch (error) {
+            console.error('❌ AuthStore - Erro no login:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Erro ao fazer login';
             set({
               isLoading: false,
-              error: error instanceof Error ? error.message : 'Erro ao fazer login',
+              error: errorMessage,
             });
             throw error;
           }
@@ -90,30 +106,26 @@ export const useAuthStore = create<AuthStore>()(
           const expiresAt = localStorage.getItem('auth_expires_at');
           if (!expiresAt) return false;
           
-          return Date.now() < parseInt(expiresAt);
+          return !authService.isTokenExpired(parseInt(expiresAt));
         },
 
-        refreshSession: async () => {
+        checkSession: () => {
           const state = get();
-          if (!state.token) return;
-          
-          try {
-            set({ isLoading: true });
-            const response = await authService.refreshToken(state.token);
-            
-            set({
-              user: response.user,
-              token: response.token,
-              isAuthenticated: true,
-              isLoading: false,
-            });
-            
-            const expiresAt = Date.now() + response.expiresIn;
-            localStorage.setItem('auth_expires_at', expiresAt.toString());
-            
-          } catch {
-            // Token inválido, fazer logout
-            get().logout();
+          if (state.token && !state.isAuthenticated) {
+            // Verificar se o token ainda é válido
+            const expiresAt = localStorage.getItem('auth_expires_at');
+            if (expiresAt && !authService.isTokenExpired(parseInt(expiresAt))) {
+              set({ isAuthenticated: true });
+            } else {
+              // Token expirado, fazer logout
+              set({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+                error: null,
+              });
+              localStorage.removeItem('auth_expires_at');
+            }
           }
         },
       }),

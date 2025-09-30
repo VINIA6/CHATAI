@@ -16,80 +16,68 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
   const { 
     clearMessages, 
     conversations, 
-    currentConversationId 
+    currentConversationId,
+    loadTalkMessages
   } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
-  // Auto-scroll instantaneously when new messages arrive
-  useEffect(() => {
-    const scrollToBottomInstant = () => {
-      if (messagesContainerRef.current && messages.length > 0) {
-        const container = messagesContainerRef.current;
-        
-        // Instant scroll for ALL messages (user and bot)
-        requestAnimationFrame(() => {
-          container.scrollTop = container.scrollHeight;
-        });
-      }
-    };
-
-    scrollToBottomInstant();
-  }, [messages]);
-
-  // Additional instant scroll trigger for message updates
+  // Simplified scroll handling - ONLY ONE useEffect for messages
   useEffect(() => {
     if (messagesContainerRef.current && messages.length > 0) {
       const container = messagesContainerRef.current;
-      // Double-ensure instant scroll with direct property assignment
-      container.scrollTop = container.scrollHeight;
+      // Simple scroll to bottom when messages change
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 100);
     }
-  }, [messages.length]);
+  }, [messages.length]); // Only depend on length, not entire messages array
 
-  // Listen for force scroll events from hooks
-  useEffect(() => {
-    const handleForceScroll = () => {
-      forceScrollToBottom();
-    };
-
-    window.addEventListener('forceScroll', handleForceScroll);
-    return () => window.removeEventListener('forceScroll', handleForceScroll);
-  }, []);
-
-  // Mutation observer for DOM changes - instant scroll
+  // Setup scroll button and force scroll listener - ONLY ONCE
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    const observer = new MutationObserver(() => {
-      // Instant scroll for any DOM change
-      container.scrollTop = container.scrollHeight;
-    });
-
-    observer.observe(container, {
-      childList: true,
-      subtree: true,
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  // Handle scroll to show/hide scroll button
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
+    // Handle scroll to show/hide scroll button
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
       setShowScrollButton(!isNearBottom && messages.length > 3);
     };
 
+    // Handle force scroll events from hooks
+    const handleForceScroll = () => {
+      container.scrollTop = container.scrollHeight;
+    };
+
     container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [messages.length]);
+    window.addEventListener('forceScroll', handleForceScroll);
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('forceScroll', handleForceScroll);
+    };
+  }, []); // Empty dependency array - setup only once
+
+  // Listen for talk messages loading from sidebar
+  useEffect(() => {
+    const handleLoadTalkMessages = (event: CustomEvent) => {
+      const { talkId, talkName, messages: talkMessages } = event.detail;
+      console.log('🔍 ChatContainer - Carregando mensagens da conversa:', talkName, 'ID:', talkId);
+      
+      // Carregar mensagens da conversa no store
+      loadTalkMessages(talkMessages);
+      console.log('✅ ChatContainer - Mensagens carregadas no store:', talkMessages.length, 'mensagens');
+    };
+
+    window.addEventListener('loadTalkMessages', handleLoadTalkMessages as EventListener);
+    
+    return () => {
+      window.removeEventListener('loadTalkMessages', handleLoadTalkMessages as EventListener);
+    };
+  }, [loadTalkMessages]);
 
   const handleScrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -101,14 +89,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ className }) => {
     }
   };
 
-  // Force instant scroll to bottom
-  const forceScrollToBottom = () => {
-    if (messagesContainerRef.current) {
-      const container = messagesContainerRef.current;
-      // Instant scroll - no animation
-      container.scrollTop = container.scrollHeight;
-    }
-  };
+  // Force instant scroll to bottom - função removida pois não é mais usada
 
   const handleClearChat = () => {
     clearMessages();

@@ -1,93 +1,190 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import type { LoginCredentials, LoginResponse, User } from '../types';
 
+interface ApiLoginResponse {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    cargo: string;
+    setor: string;
+  };
+}
+
 class AuthService {
-  private baseURL: string;
+  private readonly baseURL: string;
+  private readonly timeout = 10000;
 
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    // Detectar se estamos acessando via IP da rede
+    const currentHost = window.location.hostname;
+    const isNetworkAccess = currentHost !== 'localhost' && currentHost !== '127.0.0.1';
+    
+    if (isNetworkAccess) {
+      // Usar o mesmo IP da rede para o backend
+      this.baseURL = `http://${currentHost}:5001/api`;
+    } else {
+      this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    }
+    
+    console.log('🌐 AuthService - URL do backend:', this.baseURL);
   }
 
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
+    console.log('🔧 AuthService - Iniciando login com:', {
+      email: credentials.email,
+      hasPassword: !!credentials.password,
+      rememberMe: credentials.rememberMe
+    });
+    
+    this.validateCredentials(credentials);
+    console.log('✅ AuthService - Credenciais validadas');
+    
     try {
-      const response = await axios.post(`${this.baseURL}/login`, {
-        username: credentials.email, // A API espera 'username' mas nosso frontend usa 'email'
+      const requestData = {
+        username: credentials.email,
         password: credentials.password,
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000,
+      };
+      
+      console.log('📤 AuthService - Enviando para backend:', {
+        url: `${this.baseURL}/login`,
+        username: requestData.username,
+        hasPassword: !!requestData.password
+      });
+      
+      const response = await axios.post<ApiLoginResponse>(
+        `${this.baseURL}/login`,
+        requestData,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: this.timeout,
+        }
+      );
+
+      console.log('📨 AuthService - Resposta do backend:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasToken: !!response.data.token,
+        hasUser: !!response.data.user,
+        userName: response.data.user?.name,
+        fullResponse: response.data
       });
 
-      const { data } = response;
+      return this.transformApiResponse(response.data, credentials.email);
       
-      // Adaptar a resposta da API para o formato esperado pelo frontend
-      const user: User = {
-        id: data.user?.id || 'unknown',
-        name: data.user?.name || 'Usuário',
-        email: data.user?.email || credentials.email,
-        role: (data.user?.cargo === 'Administrador' ? 'admin' : data.user?.cargo === 'Analista' ? 'analyst' : 'user') as 'admin' | 'user' | 'analyst',
-        company: 'FIEC',
-        department: data.user?.setor || 'Observatório da Indústria',
-        createdAt: new Date(),
-        lastLoginAt: new Date(),
-      };
-
-      return {
-        user,
-        token: data.token,
-        expiresIn: 24 * 60 * 60 * 1000, // 24 horas por padrão
-      };
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const message = error.response?.data?.message || error.response?.data?.error || 'Erro ao fazer login';
-        throw new Error(message);
-      }
-      throw new Error('Erro de conexão com o servidor');
+      console.error('❌ AuthService - Erro no login:', error);
+      throw this.handleError(error);
     }
   }
 
-  async refreshToken(token: string): Promise<LoginResponse> {
-    try {
-      const response = await axios.post(`${this.baseURL}/refresh`, {}, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        timeout: 10000,
-      });
-
-      const { data } = response;
-      
-      const user: User = {
-        id: data.user?.id || 'unknown',
-        name: data.user?.name || 'Usuário',
-        email: data.user?.email || '',
-        role: data.user?.role || 'user',
-        company: data.user?.company || 'FIEC',
-        department: data.user?.department || 'Observatório da Indústria',
-        createdAt: data.user?.createdAt ? new Date(data.user.createdAt) : new Date(),
-        lastLoginAt: new Date(),
-      };
-
-      return {
-        user,
-        token: data.access_token || data.token,
-        expiresIn: data.expires_in || 24 * 60 * 60 * 1000,
-      };
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const message = error.response?.data?.message || error.response?.data?.error || 'Token inválido';
-        throw new Error(message);
-      }
-      throw new Error('Erro de conexão com o servidor');
+  private validateCredentials(credentials: LoginCredentials): void {
+    if (!credentials.email?.trim()) {
+      throw new Error('Email é obrigatório');
     }
+    if (!credentials.password?.trim()) {
+      throw new Error('Senha é obrigatória');
+    }
+    if (!this.isValidEmail(credentials.email)) {
+      throw new Error('Formato de email inválido');
+    }
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  private transformApiResponse(data: ApiLoginResponse, email: string): LoginResponse {
+    if (!data.token || !data.user) {
+      throw new Error('Resposta inválida do servidor');
+    }
+
+    const user: User = {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email || email,
+      role: this.mapUserRole(data.user.cargo),
+      company: 'FIEC',
+      department: data.user.setor || 'Observatório da Indústria',
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    };
+
+    return {
+      user,
+      token: data.token,
+      expiresIn: 24 * 60 * 60 * 1000, // 24 horas
+    };
+  }
+
+  private mapUserRole(cargo: string): 'admin' | 'analyst' | 'user' {
+    if (!cargo) return 'user';
+    
+    const cargoLower = cargo.toLowerCase();
+    if (cargoLower.includes('administrador')) return 'admin';
+    if (cargoLower.includes('analista')) return 'analyst';
+    return 'user';
+  }
+
+  private handleError(error: unknown): Error {
+    console.log('🔍 AuthService - Detalhes do erro:', error);
+    
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+      
+      console.log('📊 Axios Error Details:', {
+        code: axiosError.code,
+        message: axiosError.message,
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        data: axiosError.response?.data,
+        config: {
+          url: axiosError.config?.url,
+          method: axiosError.config?.method,
+          headers: axiosError.config?.headers
+        }
+      });
+      
+      if (axiosError.code === 'ECONNREFUSED') {
+        return new Error('Servidor indisponível. Tente novamente em alguns instantes.');
+      }
+      
+      if (axiosError.code === 'ECONNABORTED') {
+        return new Error('Tempo limite excedido. Verifique sua conexão.');
+      }
+      
+      if (axiosError.response?.status === 401) {
+        return new Error('Email ou senha incorretos');
+      }
+      
+      if (axiosError.response && axiosError.response.status >= 500) {
+        return new Error('Erro interno do servidor. Tente novamente mais tarde.');
+      }
+      
+      const serverMessage = axiosError.response?.data?.message || axiosError.response?.data?.error;
+      if (serverMessage) {
+        return new Error(serverMessage);
+      }
+      
+      return new Error(`Erro HTTP ${axiosError.response?.status}: ${axiosError.message}`);
+    }
+    
+    return new Error('Erro inesperado. Tente novamente.');
   }
 
   async logout(): Promise<void> {
-    // Implementar logout na API se necessário
-    // Por enquanto, apenas limpar dados locais
+    // Implementar logout na API se necessário no futuro
+    // Por enquanto, apenas limpar dados locais no store
+  }
+
+  isTokenExpired(expiresAt: number): boolean {
+    return Date.now() >= expiresAt;
+  }
+
+  getTokenExpiryTime(expiresIn: number): number {
+    return Date.now() + expiresIn;
   }
 }
 

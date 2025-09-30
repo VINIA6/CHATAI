@@ -1,24 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Sidebar } from './Sidebar';
 import { useChatStore } from '../../store/chatStore';
 import { useAuth } from '../../hooks/useAuth';
+import { RenderTracker } from '../Debug/RenderTracker';
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
-export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+const MainLayoutComponent: React.FC<MainLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const { 
-    messages,
-    currentConversationId,
-    conversations,
     setCurrentConversation,
     clearMessages,
     addConversation,
     updateConversation,
   } = useChatStore();
+
+  // Debug: Log when MainLayout renders
+  console.log('🔍 MainLayout render:', { 
+    sidebarOpen, 
+    userId: user?.id, 
+    userEmail: user?.email 
+  });
 
   // Handle responsive sidebar
   useEffect(() => {
@@ -40,14 +45,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   // Listen for sidebar toggle events from header
   useEffect(() => {
     const handleToggleEvent = () => {
-      setSidebarOpen(!sidebarOpen);
+      setSidebarOpen(prev => !prev); // Use function to avoid dependency
     };
 
     window.addEventListener('toggleSidebar', handleToggleEvent);
     return () => window.removeEventListener('toggleSidebar', handleToggleEvent);
-  }, [sidebarOpen]);
+  }, []); // Empty dependency array
 
-  const generateConversationTitle = (messages: { type: string; content: string }[]) => {
+  const generateConversationTitle = useCallback((messages: { type: string; content: string }[]) => {
     const userMessages = messages.filter(msg => msg.type === 'user');
     if (userMessages.length > 0) {
       const firstMessage = userMessages[0].content;
@@ -57,26 +62,31 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         : firstMessage;
     }
     return `Nova conversa ${new Date().toLocaleDateString()}`;
-  };
+  }, []);
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
+    const state = useChatStore.getState();
+    const currentMessages = state.messages;
+    const currentId = state.currentConversationId;
+    const allConversations = state.conversations;
+    
     // Salvar conversa atual se houver mensagens
-    if (messages.length > 0) {
-      if (currentConversationId) {
+    if (currentMessages.length > 0) {
+      if (currentId) {
         // Atualizar conversa existente
-        const currentConversation = conversations.find(c => c.id === currentConversationId);
+        const currentConversation = allConversations.find(c => c.id === currentId);
         if (currentConversation) {
-          updateConversation(currentConversationId, {
-            messages: [...messages],
-            title: currentConversation.title || generateConversationTitle(messages),
+          updateConversation(currentId, {
+            messages: [...currentMessages],
+            title: currentConversation.title || generateConversationTitle(currentMessages),
           });
         }
       } else {
         // Criar nova conversa para as mensagens atuais
-        const title = generateConversationTitle(messages);
+        const title = generateConversationTitle(currentMessages);
         addConversation({
           title,
-          messages: [...messages],
+          messages: [...currentMessages],
           userId: user?.id || 'anonymous',
         });
       }
@@ -85,14 +95,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // Limpar mensagens e iniciar nova conversa
     clearMessages();
     setCurrentConversation(null);
-  };
+  }, [updateConversation, generateConversationTitle, addConversation, user?.id, clearMessages, setCurrentConversation]);
 
-  const handleToggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-800">
+      <RenderTracker componentName="MainLayout" props={{ sidebarOpen, userId: user?.id }} />
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -107,3 +118,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     </div>
   );
 };
+
+export const MainLayout = memo(MainLayoutComponent);
+MainLayout.displayName = 'MainLayout';

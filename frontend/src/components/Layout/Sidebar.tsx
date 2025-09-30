@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   MessageSquare, 
-  Trash2, 
-  Edit3,
   X,
   Search,
   LogOut,
@@ -12,10 +10,11 @@ import {
   Shield,
   BarChart3
 } from 'lucide-react';
-import { useChatStore } from '../../store/chatStore';
+// useChatStore removido - apenas conversas do banco de dados
 import { useAuth } from '../../hooks/useAuth';
 import { formatRelativeTime, cn } from '../../utils';
-import type { Conversation } from '../../types';
+import { chatService } from '../../services/chatService';
+import type { Talk } from '../../types';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -30,53 +29,82 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   className,
 }) => {
-  const {
-    conversations,
-    currentConversationId,
-    loadConversation,
-    deleteConversation,
-    updateConversation,
-  } = useChatStore();
+  // Apenas conversas do banco de dados - sem estado local
   
   const { user, logout } = useAuth();
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
+  // Estados removidos - apenas conversas do banco de dados
   const [searchTerm, setSearchTerm] = useState('');
+  const [talks, setTalks] = useState<Talk[]>([]);
+  const [loadingTalks, setLoadingTalks] = useState(false);
+  const [talksError, setTalksError] = useState<string | null>(null);
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.title.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTalks = useMemo(() =>
+    talks.filter(talk =>
+      talk.name.toLowerCase().includes(searchTerm.toLowerCase()) && !talk.is_deleted
+    ), [talks, searchTerm]
   );
 
-  const handleStartEdit = (conversation: Conversation) => {
-    setEditingId(conversation.id);
-    setEditTitle(conversation.title);
-  };
+  // Load user talks on component mount or when user changes
+  useEffect(() => {
+    const loadUserTalks = async () => {
+      if (!user?.id) {
+        console.log('🔍 Sidebar - Usuário não logado, limpando talks');
+        setTalks([]);
+        return;
+      }
+      
+      console.log('🔍 Sidebar - Carregando talks para usuário:', user.id);
+      setLoadingTalks(true);
+      setTalksError(null);
+      
+      try {
+        const userTalks = await chatService.getUserTalks();
+        console.log('✅ Sidebar - Talks carregados:', userTalks);
+        setTalks(userTalks);
+      } catch (error) {
+        console.error('❌ Sidebar - Erro ao carregar talks:', error);
+        setTalksError('Erro ao carregar conversas do servidor');
+        setTalks([]); // Limpar talks em caso de erro
+      } finally {
+        setLoadingTalks(false);
+      }
+    };
 
-  const handleSaveEdit = () => {
-    if (editingId && editTitle.trim()) {
-      updateConversation(editingId, { title: editTitle.trim() });
-    }
-    setEditingId(null);
-    setEditTitle('');
-  };
+    // Debounce para evitar chamadas excessivas
+    const timeoutId = setTimeout(() => {
+      loadUserTalks();
+    }, 200);
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditTitle('');
-  };
+    return () => clearTimeout(timeoutId);
+  }, [user?.id]); // Dependência mais específica
 
-  const handleDeleteConversation = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta conversa?')) {
-      deleteConversation(id);
-    }
-  };
+  // Funções removidas - apenas conversas do banco de dados
 
-  const handleSelectConversation = (id: string) => {
-    loadConversation(id);
-    // Close sidebar on mobile after selection
-    if (window.innerWidth < 768) {
-      onToggle();
+  const handleSelectTalk = async (talk: Talk) => {
+    console.log('🎯 Sidebar - Conversa selecionada:', talk.name, 'ID:', talk._id.$oid);
+    
+    try {
+      // Carregar mensagens da conversa
+      const messages = await chatService.getMessagesByTalk(talk._id.$oid);
+      console.log('✅ Sidebar - Mensagens carregadas:', messages.length, 'mensagens');
+      
+      // Disparar evento customizado para carregar as mensagens no chat
+      window.dispatchEvent(new CustomEvent('loadTalkMessages', {
+        detail: {
+          talkId: talk._id.$oid,
+          talkName: talk.name,
+          messages: messages
+        }
+      }));
+      
+      // Fechar sidebar no mobile
+      if (window.innerWidth < 768) {
+        onToggle();
+      }
+    } catch (error) {
+      console.error('❌ Sidebar - Erro ao carregar mensagens:', error);
+      // Aqui você pode adicionar um toast de erro se quiser
     }
   };
 
@@ -162,90 +190,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto px-4 pb-4 dark-scrollbar">
+          {/* Loading state */}
+          {loadingTalks && (
+            <div className="text-center text-gray-400 py-4">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+              <p className="text-sm">Carregando conversas...</p>
+            </div>
+          )}
+
+          {/* Error state */}
+          {talksError && (
+            <div className="text-center text-red-400 py-4">
+              <p className="text-sm">{talksError}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+
+          {/* Talks from API */}
           <AnimatePresence>
-            {filteredConversations.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                <MessageSquare size={24} className="mx-auto mb-2 opacity-50" />
-                <p className="text-sm">
-                  {searchTerm ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
-                </p>
-              </div>
-            ) : (
-              filteredConversations.map((conversation) => (
-                <motion.div
-                  key={conversation.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className={cn(
-                    'group mb-2 p-3 rounded-lg cursor-pointer transition-colors relative',
-                    currentConversationId === conversation.id
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'hover:bg-gray-700'
-                  )}
-                  onClick={() => handleSelectConversation(conversation.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      {editingId === conversation.id ? (
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          onBlur={handleSaveEdit}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit();
-                            if (e.key === 'Escape') handleCancelEdit();
-                          }}
-                          className="w-full bg-transparent border-b border-gray-400 focus:outline-none focus:border-white"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <>
-                          <p className="text-sm font-medium truncate">
-                            {conversation.title}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {formatRelativeTime(conversation.updatedAt)}
-                          </p>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Action buttons */}
-                    {editingId !== conversation.id && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEdit(conversation);
-                          }}
-                          className="p-1 hover:bg-gray-600 rounded"
-                          title="Editar título"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteConversation(conversation.id);
-                          }}
-                          className="p-1 hover:bg-red-600 rounded"
-                          title="Excluir conversa"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    )}
+            {!loadingTalks && !talksError && (
+              <>
+                {filteredTalks.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                      Suas Conversas ({filteredTalks.length})
+                    </h3>
+                    {filteredTalks.map((talk) => (
+                      <motion.div
+                        key={talk._id.$oid}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="group mb-2 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-700 border border-gray-600"
+                        onClick={() => handleSelectTalk(talk)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate text-white">
+                              {talk.name}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {formatRelativeTime(new Date(talk.update_at.$date))}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
+                )}
 
-                  {/* Message count */}
-                  <div className="mt-2 text-xs text-gray-400">
-                    {conversation.messages.length} mensagens
+                {/* Empty state */}
+                {filteredTalks.length === 0 && !loadingTalks && !talksError && (
+                  <div className="text-center text-gray-400 py-8">
+                    <MessageSquare size={24} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">
+                      {searchTerm ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Suas conversas serão carregadas do banco de dados
+                    </p>
                   </div>
-                </motion.div>
-              ))
+                )}
+              </>
             )}
           </AnimatePresence>
         </div>

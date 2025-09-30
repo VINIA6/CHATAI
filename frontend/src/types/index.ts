@@ -75,3 +75,41 @@ export interface ChatResponse {
   conversationId: string;
   timestamp: number;
 }
+
+export interface Talk {
+  _id: {
+    $oid: string;
+  };
+  create_at: {
+    $date: string;
+  };
+  is_deleted: boolean;
+  name: string;
+  update_at: {
+    $date: string;
+  };
+  user_id: {
+    $oid: string;
+  };
+}
+
+export interface MessageFromAPI {
+  _id: {
+    $oid: string;
+  };
+  content: string;
+  create_at: {
+    $date: string;
+  };
+  is_deleted: boolean;
+  talk_id: {
+    $oid: string;
+  };
+  type: 'user' | 'bot';
+  update_at: {
+    $date: string;
+  };
+  user_id: {
+    $oid: string;
+  };
+}
