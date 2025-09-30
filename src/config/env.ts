@@ -1,6 +1,6 @@
 export const config = {
   // API Configuration
-  apiUrl: import.meta.env.VITE_API_URL || 'http://72.60.166.177:5001/api',
+  apiUrl: import.meta.env.VITE_API_URL || '/api',
   
   // App Configuration
   appName: import.meta.env.VITE_APP_NAME || 'ChatBot FIEC',
