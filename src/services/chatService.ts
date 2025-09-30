@@ -241,12 +241,39 @@ class ChatService {
   }
 
   private convertApiMessageToMessage(apiMessage: MessageFromAPI): Message {
-    return {
-      id: apiMessage._id.$oid,
-      content: apiMessage.content,
-      type: apiMessage.type,
-      timestamp: new Date(apiMessage.create_at.$date),
-    };
+    try {
+      // Validar estrutura da mensagem da API
+      if (!apiMessage || typeof apiMessage !== 'object') {
+        console.error('❌ convertApiMessageToMessage - apiMessage não é um objeto:', apiMessage);
+        throw new Error('Formato de mensagem inválido da API');
+      }
+
+      if (!apiMessage._id || !apiMessage._id.$oid) {
+        console.error('❌ convertApiMessageToMessage - _id inválido:', apiMessage._id);
+        throw new Error('ID da mensagem inválido');
+      }
+
+      if (!apiMessage.content) {
+        console.error('❌ convertApiMessageToMessage - content inválido:', apiMessage.content);
+        throw new Error('Conteúdo da mensagem inválido');
+      }
+
+      if (!apiMessage.create_at || !apiMessage.create_at.$date) {
+        console.error('❌ convertApiMessageToMessage - create_at inválido:', apiMessage.create_at);
+        throw new Error('Data de criação inválida');
+      }
+
+      return {
+        id: apiMessage._id.$oid,
+        content: apiMessage.content,
+        type: apiMessage.type || 'bot', // Default para bot se não especificado
+        timestamp: new Date(apiMessage.create_at.$date),
+      };
+    } catch (error) {
+      console.error('❌ Erro ao converter mensagem da API:', error);
+      console.error('❌ Dados da mensagem:', apiMessage);
+      throw new Error(`Erro ao processar mensagem: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
   }
 
   async createNewTalk(message: string): Promise<{ talk: { talk_id: string; name: string; created_at: string }; messages: Message[] }> {
@@ -261,6 +288,16 @@ class ChatService {
       );
       
       console.log('✅ ChatService - Nova conversa criada:', response.data);
+      
+      // Validar estrutura da resposta
+      if (!response.data || typeof response.data !== 'object') {
+        throw new Error('Resposta inválida da API - não é um objeto');
+      }
+      
+      if (!response.data.messages || !Array.isArray(response.data.messages)) {
+        console.error('❌ ChatService - messages não é um array:', response.data.messages);
+        throw new Error('Resposta inválida da API - messages não é um array');
+      }
       
       // Converter mensagens da API para o formato do frontend
       const messages = response.data.messages.map(this.convertApiMessageToMessage);
@@ -291,6 +328,16 @@ class ChatService {
       );
       
       console.log('✅ ChatService - Mensagem enviada:', response.data);
+      
+      // Validar estrutura da resposta
+      if (!response.data || typeof response.data !== 'object') {
+        throw new Error('Resposta inválida da API - não é um objeto');
+      }
+      
+      if (!response.data.messages || !Array.isArray(response.data.messages)) {
+        console.error('❌ ChatService - messages não é um array:', response.data.messages);
+        throw new Error('Resposta inválida da API - messages não é um array');
+      }
       
       // Converter mensagens da API para o formato do frontend
       const messages = response.data.messages.map(this.convertApiMessageToMessage);
@@ -345,6 +392,20 @@ class ChatService {
         return new Error(
           'O servidor demorou muito para responder. ' +
           'Por favor, tente novamente em alguns instantes.'
+        );
+      }
+      
+      if (errorMessage.includes("'list' object has no attribute 'get'")) {
+        return new Error(
+          'Erro interno do servidor: formato de dados incompatível. ' +
+          'A equipe técnica foi notificada. Por favor, tente novamente em alguns instantes.'
+        );
+      }
+      
+      if (errorMessage.includes('Resposta inválida da API')) {
+        return new Error(
+          'O servidor retornou dados em formato inesperado. ' +
+          'Por favor, tente novamente ou entre em contato com o suporte.'
         );
       }
       
