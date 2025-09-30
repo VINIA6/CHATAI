@@ -5,7 +5,7 @@
   "description": "Plataforma moderna de chatbot para FIEC",
   "type": "module",
   "scripts": {
-    "dev": "npm run dev",
+    "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
