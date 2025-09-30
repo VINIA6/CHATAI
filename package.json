@@ -1,11 +1,11 @@
 {
-  "name": "chatbot-fiec-frontend",
+  "name": "chatai-monorepo",
   "private": true,
   "version": "1.0.0",
   "description": "Plataforma moderna de chatbot para FIEC",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run dev",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
